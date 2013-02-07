@@ -61,6 +61,17 @@ def f():
     with open(os.path.join("transactions", "comments.json"), "w", encoding= "utf-8") as f:
         json.dump(comments, f, ensure_ascii= False, sort_keys= True, indent= 2)
 
+    limit, offset, statuses = 30, 0, []
+    while True:
+        result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
+        print "Got %d stream items: %s" % ( len(result), [ "{%s}" % item["type"] for item in result ] )
+        statuses += result
+        offset += len(result)
+        if len(result) == 0:
+            break
+    with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
+        json.dump(statuses, f, ensure_ascii= False, sort_keys= True, indent= 2)
+
 
 if __name__ == "__main__":
     f()
