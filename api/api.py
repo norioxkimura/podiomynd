@@ -3,12 +3,15 @@
 
 # {{{ Imports
 
+from   os import mkdir
 import os.path
 import json
 from   time import sleep
 from   codecs import open
+from   bottle import template
 import pypodio2.api as podio_api
 from   datetime import datetime
+from   markdown import markdown
 
 # }}}
 
@@ -30,7 +33,15 @@ def greedy(api, *pargs, **kargs):
     return result
 
 
-def f():
+def u(t):
+    return t.encode("utf-8")
+
+
+def htmlof(t):
+    return markdown(t)
+
+
+def download_all_threads():
 
     with open(os.path.expanduser("~/.podio")) as f:
         password = f.next().strip()
@@ -66,7 +77,57 @@ def f():
         json.dump(statuses, f, ensure_ascii= False, sort_keys= True, indent= 2)
 
 
+def generate_htmls():
+
+    with open(os.path.join("transactions", "threads.json")) as f:
+        threads = json.load(f)
+    with open(os.path.join("transactions", "items.json")) as f:
+        items = json.load(f)
+    with open(os.path.join("transactions", "statuses.json")) as f:
+        statuses = json.load(f)
+
+    try:
+        mkdir("html")
+    except:
+        pass
+    for thread in threads:
+        thread_html = {}
+        if thread["type"] == "item":
+            item = items[str(thread["id"])]
+            title = htmlof(item["title"])
+            link = item["link"]
+            res = [ {
+                        "user": comment["user"]["name"],
+                        "text": htmlof(comment["value"]),
+                        "embed": {
+                            "title": comment["embed"]["title"],
+                            "description": comment["embed"]["description"] if comment["embed"]["description"] else ""
+                        } if comment["embed"] else None
+                    } for comment in item["comments"] ]
+        elif thread["type"] == "status":
+            status = statuses[str(thread["id"])]
+            link = status["link"]
+            title = status["value"]
+            res = [ {
+                        "user": comment["user"]["name"],
+                        "text": htmlof(comment["value"]),
+                        "embed": {
+                            "title": comment["embed"]["title"],
+                            "description": comment["embed"]["description"] if comment["embed"]["description"] else ""
+                        } if comment["embed"] else None
+                    }
+                    for comment in status["comments"] ]
+        else:
+            continue
+        thread_html["title"] = title
+        thread_html["link"] = link
+        thread_html["res"] = res
+        s = template("thread", thread_html= thread_html)
+        with open(os.path.join("html", "%s-%d.html" % ( thread["type"], thread["id"] )), "w", encoding= "utf-8") as f:
+            f.write(s)
+
+
 if __name__ == "__main__":
-    f()
+    generate_htmls()
 
 
