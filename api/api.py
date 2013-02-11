@@ -8,7 +8,8 @@ import os.path
 import json
 from   time import sleep
 from   codecs import open
-from   bottle import template
+import bottle
+from   bottle import template, static_file, route
 import pypodio2.api as podio_api
 from   datetime import datetime
 from   markdown import markdown
@@ -127,7 +128,12 @@ def generate_htmls():
             f.write(s)
 
 
+@route("/html/<filepath:path>")
+def static(filepath):
+    return static_file(filepath, root= os.path.join(os.path.dirname(__file__), "html"))
+
+
 if __name__ == "__main__":
-    generate_htmls()
+    bottle.run(host= "0.0.0.0", port= 18001, reloader= True)
 
 
