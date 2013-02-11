@@ -39,7 +39,7 @@ def u(t):
 
 
 def htmlof(t):
-    return markdown(t)
+    return markdown(t.replace("\r\n\r\n", "\n\n").replace("\r\n", "  \n"), safe_mode= "escape")
 
 
 def download_all_threads():
@@ -97,6 +97,11 @@ def generate_htmls():
             item = items[str(thread["id"])]
             title = htmlof(item["title"])
             link = item["link"]
+            descriptions = [ {
+                                "name": field["label"],
+                                "value": field["values"][0]["value"],
+                             }
+                             for field in item["fields"] if field["type"] == "text" ]
             res = [ {
                         "user": comment["user"]["name"],
                         "text": htmlof(comment["value"]),
@@ -108,6 +113,7 @@ def generate_htmls():
         elif thread["type"] == "status":
             status = statuses[str(thread["id"])]
             link = status["link"]
+            descriptions = []
             title = status["value"]
             res = [ {
                         "user": comment["user"]["name"],
@@ -122,6 +128,7 @@ def generate_htmls():
             continue
         thread_html["title"] = title
         thread_html["link"] = link
+        thread_html["descriptions"] = descriptions
         thread_html["res"] = res
         s = template("thread", thread_html= thread_html)
         with open(os.path.join("html", "%s-%d.html" % ( thread["type"], thread["id"] )), "w", encoding= "utf-8") as f:

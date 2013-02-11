@@ -18,6 +18,12 @@ pre {
     border-width: 1px 0px;
     border-color: rgb(201, 201, 201);
 }
+.descriptions {
+    background-color: #FFEEEE;
+}
+.description_value {
+    margin-left: 2em;
+}
 .comment_user {
     margin-top: 1em;
     color: rgb(51, 118, 164);
@@ -35,6 +41,14 @@ pre {
 <body>
 <div id="body">
 <h1><a target="_blank" href="{{ thread_html["link"] }}">{{!thread_html["title"] }}</a></h1>
+<div class="descriptions">
+% for description in thread_html["descriptions"]:
+    <div class="description">
+        <b>{{ description["name"] }}</b>:
+        <div class="description_value">{{!description["value"] }}</div>
+    </div>
+% end
+</div>
 % for re in thread_html["res"]:
     <div class="comment">
     <div class="comment_user">{{ re["user"] }}</div>
