@@ -95,7 +95,7 @@ def generate_htmls():
         thread_html = {}
         if thread["type"] == "item":
             item = items[str(thread["id"])]
-            title = htmlof(item["title"])
+            title = item["title"]
             link = item["link"]
             descriptions = [ {
                                 "name": field["label"],

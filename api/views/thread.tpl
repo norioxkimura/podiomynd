@@ -37,10 +37,22 @@ pre {
     padding-left: 10px;
     font-size: smaller;
 }
+h1 {
+    margin-bottom: 0.3em;
+}
+.podio_url_link {
+    font-size: smaller;
+    margin-top: 0.3em;
+    margin-bottom: 1em;
+}
 </style>
+<title>{{ thread_html["title"] }}</title>
 <body>
 <div id="body">
-<h1><a target="_blank" href="{{ thread_html["link"] }}">{{!thread_html["title"] }}</a></h1>
+<h1><a target="_blank" href="{{ thread_html["link"] }}">{{ thread_html["title"] }}</a></h1>
+<div class="podio_url_link">
+<a target="_blank" href="{{ thread_html["link"] }}">{{ thread_html["link"] }}</a>
+</div>
 <div class="descriptions">
 % for description in thread_html["descriptions"]:
     <div class="description">
