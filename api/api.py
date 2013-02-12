@@ -13,6 +13,7 @@ from   bottle import template, static_file, route
 import pypodio2.api as podio_api
 from   datetime import datetime
 from   markdown import markdown
+from   itertools import takewhile
 
 # }}}
 
@@ -53,10 +54,10 @@ def download_all_threads():
     while True:
         result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
         print "Got %d stream items. %s" % ( len(result), [ "{%s}" % item["type"][0] for item in result ] )
-        threads += result
-        offset += len(result)
         if len(result) == 0:
             break
+        threads += result
+        offset += len(result)
     with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
         json.dump(threads, f, ensure_ascii= False, sort_keys= True, indent= 2)
 
@@ -76,6 +77,40 @@ def download_all_threads():
         json.dump(items, f, ensure_ascii= False, sort_keys= True, indent= 2)
     with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
         json.dump(statuses, f, ensure_ascii= False, sort_keys= True, indent= 2)
+
+
+def sync_threads():
+
+    with open(os.path.expanduser("~/.podio")) as f:
+        password = f.next().strip()
+    client = podio_api.OAuthClient("api-test", "pnr83r17SiK2LOo0sq4yStcVMx6CLsHTGX4ToOPnsO15lvrp48VpUQPokHs7ohkf",
+                                   "kimura@mynd.jp", password)
+
+    with open(os.path.join("transactions", "threads.json")) as f:
+        threads = json.load(f)
+    with open(os.path.join("transactions", "items.json")) as f:
+        items = json.load(f)
+    with open(os.path.join("transactions", "statuses.json")) as f:
+        statuses = json.load(f)
+
+    latest_update_on = max([ datetime.strptime(thread["last_update_on"], "%Y-%m-%d %H:%M:%S") for thread in threads ])
+    limit, offset, threads_new = 30, 0, []
+    while True:
+        result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
+        print "Got %d stream items. %s" % ( len(result), [ "{%s}" % item["type"][0] for item in result ] )
+        if len(result) == 0:
+            break
+        result_new = filter(
+            lambda x: datetime.strptime(x["last_update_on"], "%Y-%m-%d %H:%M:%S") > latest_update_on,
+            result
+        )
+        result_new = list(result_new)
+        threads_new += result_new
+        if len(result_new) < len(result):
+            break
+        offset += len(result)
+    # with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
+    #     json.dump(dict(threads, **threads_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
 
 
 def generate_htmls():
