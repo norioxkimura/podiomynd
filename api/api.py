@@ -43,6 +43,22 @@ def htmlof(t):
     return markdown(t.replace("\r\n\r\n", "\n\n").replace("\r\n", "  \n"), safe_mode= "escape")
 
 
+def download_thread_details(client, threads):
+    items, statuses = {}, {}
+    num_threads = len(threads)
+    for i, thread in enumerate(threads):
+        print "%d/%d:" % ( i + 1, num_threads ),
+        if thread["type"] == "item":
+            items[thread["id"]] = greedy(client.Item.find, thread["id"])
+        elif thread["type"] == "status":
+            statuses[thread["id"]] = greedy(client.Status.find, thread["id"])
+        try:
+            print "[%s]" % thread["type"], thread["app"]["config"]["name"]
+        except:
+            print "(%s)" % thread["space"]["name"]
+    return (items, statuses)
+
+
 def download_all_threads():
 
     with open(os.path.expanduser("~/.podio")) as f:
@@ -61,18 +77,7 @@ def download_all_threads():
     with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
         json.dump(threads, f, ensure_ascii= False, sort_keys= True, indent= 2)
 
-    items, statuses = {}, {}
-    num_threads = len(threads)
-    for i, thread in enumerate(threads):
-        print "%d/%d:" % ( i + 1, num_threads ),
-        if thread["type"] == "item":
-            items[thread["id"]] = greedy(client.Item.find, thread["id"])
-        elif thread["type"] == "status":
-            statuses[thread["id"]] = greedy(client.Status.find, thread["id"])
-        try:
-            print "[%s]" % thread["type"], thread["app"]["config"]["name"]
-        except:
-            print "(%s)" % thread["space"]["name"]
+    items, statuses = download_thread_details(client, threads)
     with open(os.path.join("transactions", "items.json"), "w", encoding= "utf-8") as f:
         json.dump(items, f, ensure_ascii= False, sort_keys= True, indent= 2)
     with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
@@ -100,7 +105,7 @@ def sync_threads():
         print "Got %d stream items. %s" % ( len(result), [ "{%s}" % item["type"][0] for item in result ] )
         if len(result) == 0:
             break
-        result_new = filter(
+        result_new = takewhile(
             lambda x: datetime.strptime(x["last_update_on"], "%Y-%m-%d %H:%M:%S") > latest_update_on,
             result
         )
@@ -111,6 +116,12 @@ def sync_threads():
         offset += len(result)
     # with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
     #     json.dump(dict(threads, **threads_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
+
+    items_new, statuses_new = download_thread_details(client, threads_new)
+    # with open(os.path.join("transactions", "items.json"), "w", encoding= "utf-8") as f:
+    #     json.dump(dict(items, **items_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
+    # with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
+    #     json.dump(dict(statuses, **statuses_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
 
 
 def generate_htmls():
