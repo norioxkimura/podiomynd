@@ -43,104 +43,104 @@ def htmlof(t):
     return markdown(t.replace("\r\n\r\n", "\n\n").replace("\r\n", "  \n"), safe_mode= "escape")
 
 
+def path(*pargs):
+    return os.path.join(os.path.dirname(__file__), *pargs)
+
+
+def download_threads(client, from_exclusive):
+    limit, offset, threads = 30, 0, []
+    while True:
+        result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
+        log("Got %d stream items. %s" % ( len(result), "".join([ "%s" % item["type"][0] for item in result ]) ))
+        if len(result) == 0:
+            break
+        result_new = takewhile(
+            lambda x: datetime.strptime(x["last_update_on"], "%Y-%m-%d %H:%M:%S") > from_exclusive,
+            result
+        )
+        result_new = list(result_new)
+        threads += result_new
+        if len(result_new) < len(result):
+            break
+        offset += len(result)
+    return threads
+
+
 def download_thread_details(client, threads):
     items, statuses = {}, {}
     num_threads = len(threads)
     for i, thread in enumerate(threads):
-        print "%d/%d:" % ( i + 1, num_threads ),
         if thread["type"] == "item":
-            items[thread["id"]] = greedy(client.Item.find, thread["id"])
+            items[str(thread["id"])] = greedy(client.Item.find, thread["id"])
         elif thread["type"] == "status":
-            statuses[thread["id"]] = greedy(client.Status.find, thread["id"])
-        try:
-            print "[%s]" % thread["type"], thread["app"]["config"]["name"]
-        except:
-            print "(%s)" % thread["space"]["name"]
+            statuses[str(thread["id"])] = greedy(client.Status.find, thread["id"])
+        log("%d/%d: [%s]" % ( i + 1, num_threads, thread["type"] ))
     return (items, statuses)
 
 
-def download_all_threads():
+def load_json(path, default):
+    try:
+        with open(path) as f:
+            result = json.load(f)
+    except IOError, e:
+        if e.errno != 2:
+            raise
+        result = default
+    return result
 
-    with open(os.path.expanduser("~/.podio")) as f:
-        password = f.next().strip()
-    client = podio_api.OAuthClient("api-test", "pnr83r17SiK2LOo0sq4yStcVMx6CLsHTGX4ToOPnsO15lvrp48VpUQPokHs7ohkf",
-                                   "kimura@mynd.jp", password)
 
-    limit, offset, threads = 30, 0, []
-    while True:
-        result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
-        print "Got %d stream items. %s" % ( len(result), [ "{%s}" % item["type"][0] for item in result ] )
-        if len(result) == 0:
-            break
-        threads += result
-        offset += len(result)
-    with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
+def load_threads():
+    threads = load_json(path("transactions", "threads.json"), [])
+    items = load_json(path("transactions", "items.json"), {})
+    statuses = load_json(path("transactions", "statuses.json"), {})
+    return ( threads, items, statuses )
+
+
+def dump_threads(threads, items, statuses):
+    with open(path("transactions", "threads.json"), "w", encoding= "utf-8") as f:
         json.dump(threads, f, ensure_ascii= False, sort_keys= True, indent= 2)
-
-    items, statuses = download_thread_details(client, threads)
-    with open(os.path.join("transactions", "items.json"), "w", encoding= "utf-8") as f:
+    with open(path("transactions", "items.json"), "w", encoding= "utf-8") as f:
         json.dump(items, f, ensure_ascii= False, sort_keys= True, indent= 2)
-    with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
+    with open(path("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
         json.dump(statuses, f, ensure_ascii= False, sort_keys= True, indent= 2)
 
 
-def sync_threads():
-
+def login():
     with open(os.path.expanduser("~/.podio")) as f:
         password = f.next().strip()
     client = podio_api.OAuthClient("api-test", "pnr83r17SiK2LOo0sq4yStcVMx6CLsHTGX4ToOPnsO15lvrp48VpUQPokHs7ohkf",
                                    "kimura@mynd.jp", password)
-
-    with open(os.path.join("transactions", "threads.json")) as f:
-        threads = json.load(f)
-    with open(os.path.join("transactions", "items.json")) as f:
-        items = json.load(f)
-    with open(os.path.join("transactions", "statuses.json")) as f:
-        statuses = json.load(f)
-
-    latest_update_on = max([ datetime.strptime(thread["last_update_on"], "%Y-%m-%d %H:%M:%S") for thread in threads ])
-    limit, offset, threads_new = 30, 0, []
-    while True:
-        result = greedy(client.Stream.transport.GET, url= "/stream/?offset=%d&limit=%d" % ( offset, limit ))
-        print "Got %d stream items. %s" % ( len(result), [ "{%s}" % item["type"][0] for item in result ] )
-        if len(result) == 0:
-            break
-        result_new = takewhile(
-            lambda x: datetime.strptime(x["last_update_on"], "%Y-%m-%d %H:%M:%S") > latest_update_on,
-            result
-        )
-        result_new = list(result_new)
-        threads_new += result_new
-        if len(result_new) < len(result):
-            break
-        offset += len(result)
-    # with open(os.path.join("transactions", "threads.json"), "w", encoding= "utf-8") as f:
-    #     json.dump(dict(threads, **threads_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
-
-    items_new, statuses_new = download_thread_details(client, threads_new)
-    # with open(os.path.join("transactions", "items.json"), "w", encoding= "utf-8") as f:
-    #     json.dump(dict(items, **items_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
-    # with open(os.path.join("transactions", "statuses.json"), "w", encoding= "utf-8") as f:
-    #     json.dump(dict(statuses, **statuses_new), f, ensure_ascii= False, sort_keys= True, indent= 2)
+    return client
 
 
-def generate_htmls():
+def get_latest_update_on(threads):
+    if threads:
+        return max([ datetime.strptime(thread["last_update_on"], "%Y-%m-%d %H:%M:%S") for thread in threads ])
+    else:
+        return datetime(1900, 1, 1)  # ancient time
 
-    with open(os.path.join("transactions", "threads.json")) as f:
-        threads = json.load(f)
-    with open(os.path.join("transactions", "items.json")) as f:
-        items = json.load(f)
-    with open(os.path.join("transactions", "statuses.json")) as f:
-        statuses = json.load(f)
+
+def sync_threads():
+    client = login()
+    threads, items, statuses = load_threads()
+    latest_update_on = get_latest_update_on(threads)
+    threads_new = download_threads(client, latest_update_on)
+    if threads_new:
+        items_new, statuses_new = download_thread_details(client, threads_new)
+        dump_threads(threads + threads_new, dict(items, **items_new), dict(statuses, **statuses_new))
+        generate_htmls(threads + threads_new, threads_new, items_new, statuses_new)
+
+
+def generate_htmls(threads_all, threads_new, items_new, statuses_new):
 
     try:
         mkdir("html")
     except:
         pass
-    for thread in threads:
+    for thread in threads_new:
         thread_html = {}
         if thread["type"] == "item":
-            item = items[str(thread["id"])]
+            item = items_new[str(thread["id"])]
             title = item["title"]
             link = item["link"]
             descriptions = [ {
@@ -157,7 +157,7 @@ def generate_htmls():
                         } if comment["embed"] else None
                     } for comment in item["comments"] ]
         elif thread["type"] == "status":
-            status = statuses[str(thread["id"])]
+            status = statuses_new[str(thread["id"])]
             link = status["link"]
             descriptions = []
             title = status["value"]
@@ -171,19 +171,29 @@ def generate_htmls():
                     }
                     for comment in status["comments"] ]
         else:
+            log("generate_htmls(): type [%s]: skipped" % ( thread["type"] ))
             continue
         thread_html["title"] = title
         thread_html["link"] = link
         thread_html["descriptions"] = descriptions
         thread_html["res"] = res
         s = template("thread", thread_html= thread_html)
-        with open(os.path.join("html", "%s-%d.html" % ( thread["type"], thread["id"] )), "w", encoding= "utf-8") as f:
+        fname = "%s-%d.html" % ( thread["type"], thread["id"] )
+        with open(path("html", fname), "w", encoding= "utf-8") as f:
             f.write(s)
+    index_html = ""
+    for thread in threads_all:
+        if thread["type"] != "item" and thread["type"] != "status":
+            continue
+        fname = "%s-%d.html" % ( thread["type"], thread["id"] )
+        index_html += """<a target="_blank" href="%s">%s</a><br />\n""" % ( fname, fname )
+    with open(path("html", "index.html"), "w", encoding= "utf-8") as f:
+        f.write(index_html)
 
 
 @route("/html/<filepath:path>")
 def static(filepath):
-    return static_file(filepath, root= os.path.join(os.path.dirname(__file__), "html"))
+    return static_file(filepath, root= path("html"))
 
 
 if __name__ == "__main__":
