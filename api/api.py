@@ -134,7 +134,7 @@ def sync_threads():
 def generate_htmls(threads_all, threads_new, items_new, statuses_new):
 
     try:
-        mkdir("html")
+        mkdir(path("html"))
     except:
         pass
     for thread in threads_new:
@@ -177,7 +177,7 @@ def generate_htmls(threads_all, threads_new, items_new, statuses_new):
         thread_html["link"] = link
         thread_html["descriptions"] = descriptions
         thread_html["res"] = res
-        s = template("thread", lookup= [ path("views") ], thread_html= thread_html)
+        s = template("thread", template_lookup= [ path("views") ], thread_html= thread_html)
         fname = "%s-%d.html" % ( thread["type"], thread["id"] )
         with open(path("html", fname), "w", encoding= "utf-8") as f:
             f.write(s)
