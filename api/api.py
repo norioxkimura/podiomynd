@@ -189,7 +189,9 @@ def generate_htmls(threads_all, threads_new, items_new, statuses_new):
         with open(path("html", fname), "w", encoding= "utf-8") as f:
             f.write(s)
         last_update_naive_local = parse_datetime(thread["last_update_on"])
-        utime(path("html", fname), ( datetime.now(), last_update_naive_local ))
+        last_update_timestamp = time.mktime(last_update_naive_local.timetuple())
+        now_timestamp = time.mktime(datetime.now().timetuple())
+        utime(path("html", fname), ( now_timestamp, last_update_timestamp ))
     index_html = ""
     for thread in threads_all:
         if thread["type"] != "item" and thread["type"] != "status":
