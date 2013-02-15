@@ -57,7 +57,7 @@ def download_threads(client, from_exclusive):
         if len(result) == 0:
             break
         result_new = takewhile(
-            lambda x: datetime.strptime(x["last_update_on"], "%Y-%m-%d %H:%M:%S") > from_exclusive,
+            lambda x: parse_datetime(x["last_update_on"]) > from_exclusive,
             result
         )
         result_new = list(result_new)
