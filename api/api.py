@@ -3,7 +3,7 @@
 
 # {{{ Imports
 
-from   os import mkdir
+from   os import mkdir, utime
 import os.path
 import json
 from   time import sleep
@@ -11,6 +11,7 @@ from   codecs import open
 import bottle
 from   bottle import template, static_file, route
 import pypodio2.api as podio_api
+import calendar
 from   datetime import datetime
 from   markdown import markdown
 from   itertools import takewhile
@@ -113,9 +114,15 @@ def login():
     return client
 
 
+def parse_datetime(datetime_string):
+    naive_utc = datetime.strptime(datetime_string, "%Y-%m-%d %H:%M:%S")
+    naive_local = datetime.fromtimestamp(calendar.timegm(naive_utc.timetuple()))
+    return naive_local
+
+
 def get_latest_update_on(threads):
     if threads:
-        return max([ datetime.strptime(thread["last_update_on"], "%Y-%m-%d %H:%M:%S") for thread in threads ])
+        return max([ parse_datetime(thread["last_update_on"]) for thread in threads ])
     else:
         return datetime(1900, 1, 1)  # ancient time
 
@@ -181,6 +188,8 @@ def generate_htmls(threads_all, threads_new, items_new, statuses_new):
         fname = "%s-%d.html" % ( thread["type"], thread["id"] )
         with open(path("html", fname), "w", encoding= "utf-8") as f:
             f.write(s)
+        last_update_naive_local = parse_datetime(thread["last_update_on"])
+        utime(path("html", fname), ( datetime.now(), last_update_naive_local ))
     index_html = ""
     for thread in threads_all:
         if thread["type"] != "item" and thread["type"] != "status":
